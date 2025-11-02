@@ -10,6 +10,10 @@ RUN mkdir -p /workflows
 # Copy workflows from repository
 COPY n8n/workflows/ /workflows/
 
+# Copy start script
+COPY start.sh /start.sh
+RUN chmod +x /start.sh
+
 # Set Railway-specific environment variables
 ENV N8N_BASIC_AUTH_ACTIVE=true
 ENV N8N_PORT=5678
@@ -34,5 +38,5 @@ ENV DB_TYPE=postgresdb
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
   CMD curl -f http://localhost:5678/health || exit 1
 
-# Start n8n
-CMD ["n8n", "start"]
+# Start n8n using start script
+CMD ["/start.sh"]
