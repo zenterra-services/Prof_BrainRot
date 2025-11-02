@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: profbrainrot
+      POSTGRES_USER: profbrainrot
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-profbrainrot123}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - profbrainrot-network
+
+  n8n:
+    image: n8nio/n8n:latest
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=${N8N_USER:-admin}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_PASSWORD:-profbrainrot123}
+      - N8N_HOST=${N8N_HOST:-localhost}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - NODE_ENV=production
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:-profbrainrot-encryption-key}
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=profbrainrot
+      - DB_POSTGRESDB_USER=profbrainrot
+      - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD:-profbrainrot123}
+      # External API Keys
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - WAN25_API_KEY=${WAN25_API_KEY}
+      - WAN25_REGION=${WAN25_REGION:-intl}
+      - PROCESSING_NOTIFICATION_EMAIL=${PROCESSING_NOTIFICATION_EMAIL:-your-email@example.com}
+      # SMTP Settings for notifications
+      - SMTP_HOST=${SMTP_HOST:-smtp.gmail.com}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./n8n/workflows:/workflows
+    depends_on:
+      - postgres
+    networks:
+      - profbrainrot-network
+    restart: unless-stopped
+
+  # Optional: Redis for future scaling
+  # redis:
+  #   image: redis:7-alpine
+  #   command: redis-server --appendonly yes
+  #   volumes:
+  #     - redis_data:/data
+  #   ports:
+  #     - "6379:6379"
+  #   networks:
+  #     - profbrainrot-network
+
+volumes:
+  postgres_data:
+  n8n_data:
+  # redis_data:
+
+networks:
+  profbrainrot-network:
+    driver: bridge
