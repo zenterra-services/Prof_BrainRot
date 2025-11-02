@@ -1,4 +1,4 @@
-# Debug Dockerfile for Railway n8n deployment
+# Debug Dockerfile for Railway n8n deployment - v2 (forced rebuild)
 FROM node:18-alpine
 
 # Install dependencies
