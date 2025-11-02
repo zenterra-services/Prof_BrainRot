@@ -17,7 +17,8 @@ RUN npm install -g n8n --verbose
 RUN mkdir -p /workflows && \
     chown -R n8n:n8n /workflows
 
-# Copy workflows
+# Copy entrypoint script and workflows
+COPY n8n/entrypoint.sh /entrypoint.sh
 COPY n8n/workflows/ /workflows/
 
 # Switch to n8n user
@@ -31,12 +32,20 @@ ENV N8N_HOST=0.0.0.0
 ENV DB_TYPE=postgresdb
 ENV NODE_ENV=production
 
-# Add debug startup script
-RUN echo '#!/bin/bash
+# Add debug startup script with timestamp to force rebuild
+RUN echo "# Debug script created at $(date)" && \
+    echo '#!/bin/bash
+echo "==========================================="
 echo "Debug: Starting n8n diagnostic..."
+echo "Debug: Current time: $(date)"
 echo "Debug: PATH=$PATH"
 echo "Debug: which n8n=$(which n8n || echo "not found")"
 echo "Debug: ls -la /usr/local/bin/n8n=$(ls -la /usr/local/bin/n8n 2>/dev/null || echo "not found")"
+echo "Debug: Current user: $(whoami)"
+echo "Debug: Working directory: $(pwd)"
+echo "Debug: Environment variables:"
+env | grep -E "(N8N|NODE)" || echo "No N8N/NODE env vars found"
+echo "==========================================="
 echo "Debug: Starting n8n..."
 exec /usr/local/bin/n8n start' > /start-debug.sh && \
     chmod +x /start-debug.sh
@@ -47,5 +56,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 
 EXPOSE 5678
 
-# Use debug startup script
-CMD ["/start-debug.sh"]
+# Use enhanced entrypoint script
+ENTRYPOINT ["/entrypoint.sh"]
