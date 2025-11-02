@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProfBrainRot - Lesson Processor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            padding: 30px;
+        }
+
+        .upload-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group textarea {
+            height: 120px;
+            resize: vertical;
+        }
+
+        .file-upload {
+            border: 3px dashed #667eea;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            background: white;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .file-upload:hover {
+            background: #f8f9ff;
+            border-color: #5a6fd8;
+        }
+
+        .file-upload input[type="file"] {
+            display: none;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .status-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            border-left: 5px solid #667eea;
+        }
+
+        .status-card h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .status-item:last-child {
+            border-bottom: none;
+        }
+
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-queued { background: #ffc107; color: #212529; }
+        .status-processing { background: #17a2b8; color: white; }
+        .status-completed { background: #28a745; color: white; }
+        .status-failed { background: #dc3545; color: white; }
+
+        .queue-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .queue-table th {
+            background: #2c3e50;
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .queue-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .queue-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧠 ProfBrainRot</h1>
+            <p>Transform lesson plans into ADHD-friendly short-form videos</p>
+        </div>
+
+        <div class="main-content">
+            <!-- Upload Section -->
+            <div class="upload-section">
+                <h2>Upload Lesson Plan</h2>
+                <form id="lessonForm">
+                    <div class="form-group">
+                        <label for="title">Lesson Title *</label>
+                        <input type="text" id="title" name="title" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="subject">Subject *</label>
+                        <select id="subject" name="subject" required>
+                            <option value="">Select Subject</option>
+                            <option value="mathematics">Mathematics</option>
+                            <option value="physics">Physics</option>
+                            <option value="chemistry">Chemistry</option>
+                            <option value="biology">Biology</option>
+                            <option value="history">History</option>
+                            <option value="geography">Geography</option>
+                            <option value="literature">Literature</option>
+                            <option value="english">English</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="grade_level">Grade Level *</label>
+                        <select id="grade_level" name="grade_level" required>
+                            <option value="">Select Grade</option>
+                            <option value="5">Grade 5</option>
+                            <option value="6">Grade 6</option>
+                            <option value="7">Grade 7</option>
+                            <option value="8">Grade 8</option>
+                            <option value="9">Grade 9</option>
+                            <option value="10">Grade 10</option>
+                            <option value="11">Grade 11</option>
+                            <option value="12">Grade 12</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="content">Lesson Content *</label>
+                        <textarea id="content" name="content" placeholder="Enter your lesson content here..." required></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Or Upload File</label>
+                        <div class="file-upload" onclick="document.getElementById('file').click()">
+                            <input type="file" id="file" name="file" accept=".pdf,.docx,.txt">
+                            <p>📁 Click to upload PDF, DOCX, or TXT file</p>
+                            <p id="file-name" style="margin-top: 10px; font-weight: bold;"></p>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="adhd_optimized" name="adhd_optimized" checked>
+                            ADHD-optimized content (recommended)
+                        </label>
+                    </div>
+
+                    <button type="submit" class="btn" id="submitBtn">
+                        Process Lesson Plan
+                    </button>
+                </form>
+            </div>
+
+            <!-- Status Section -->
+            <div id="statusSection" style="display: none;">
+                <h2>Processing Status</h2>
+                <div id="statusAlert"></div>
+
+                <div class="status-section">
+                    <div class="status-card">
+                        <h3>📊 Queue Status</h3>
+                        <div id="queueStats">
+                            <div class="status-item">
+                                <span>Queued</span>
+                                <span class="status-badge status-queued" id="queuedCount">0</span>
+                            </div>
+                            <div class="status-item">
+                                <span>Processing</span>
+                                <span class="status-badge status-processing" id="processingCount">0</span>
+                            </div>
+                            <div class="status-item">
+                                <span>Completed</span>
+                                <span class="status-badge status-completed" id="completedCount">0</span>
+                            </div>
+                            <div class="status-item">
+                                <span>Failed</span>
+                                <span class="status-badge status-failed" id="failedCount">0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="status-card">
+                        <h3>⚙️ System Status</h3>
+                        <div id="systemStats">
+                            <div class="status-item">
+                                <span>n8n Status</span>
+                                <span id="n8nStatus">Checking...</span>
+                            </div>
+                            <div class="status-item">
+                                <span>Last Update</span>
+                                <span id="lastUpdate">Never</span>
+                            </div>
+                            <div class="status-item">
+                                <span>Total Lessons</span>
+                                <span id="totalLessons">0</span>
+                            </div>
+                            <div class="status-item">
+                                <span>Total Videos</span>
+                                <span id="totalVideos">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <h3>📋 Recent Queue Items</h3>
+                <div style="overflow-x: auto;">
+                    <table class="queue-table">
+                        <thead>
+                            <tr>
+                                <th>Script ID</th>
+                                <th>Lesson</th>
+                                <th>Type</th>
+                                <th>Platform</th>
+                                <th>Status</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="queueTableBody">
+                            <tr>
+                                <td colspan="7" style="text-align: center; color: #666;">No items in queue</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const N8N_WEBHOOK_URL = 'http://localhost:5678/webhook/process-lesson';
+        const N8N_STATUS_URL = 'http://localhost:5678/health';
+
+        // File upload handling
+        document.getElementById('file').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                document.getElementById('file-name').textContent = file.name;
+            }
+        });
+
+        // Form submission
+        document.getElementById('lessonForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const submitBtn = document.getElementById('submitBtn');
+            const formData = new FormData(this);
+
+            // Disable submit button
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="loading"></span> Processing...';
+
+            try {
+                // Prepare data
+                const data = {
+                    lesson_id: 'lesson_' + Date.now(),
+                    title: formData.get('title'),
+                    subject: formData.get('subject'),
+                    grade_level: formData.get('grade_level'),
+                    content: formData.get('content'),
+                    format: 'text',
+                    source_type: 'manual',
+                    adhd_optimized: formData.get('adhd_optimized') === 'on'
+                };
+
+                // Handle file upload if present
+                const file = formData.get('file');
+                if (file && file.size > 0) {
+                    // For now, just note that file upload would be handled
+                    // In a real implementation, you'd upload the file first
+                    data.format = file.name.split('.').pop().toLowerCase();
+                    data.has_file = true;
+                }
+
+                // Send to n8n webhook
+                const response = await fetch(N8N_WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    showAlert('success', 'Lesson plan submitted successfully! Scripts are being generated and will be queued for video creation.');
+                    document.getElementById('statusSection').style.display = 'block';
+                    loadQueueStatus();
+
+                    // Reset form
+                    document.getElementById('lessonForm').reset();
+                    document.getElementById('file-name').textContent = '';
+                } else {
+                    throw new Error('Failed to submit lesson plan');
+                }
+
+            } catch (error) {
+                showAlert('error', 'Error submitting lesson plan: ' + error.message);
+                console.error('Submission error:', error);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = 'Process Lesson Plan';
+            }
+        });
+
+        // Show alert messages
+        function showAlert(type, message) {
+            const alertDiv = document.getElementById('statusAlert');
+            alertDiv.className = `alert alert-${type}`;
+            alertDiv.textContent = message;
+            alertDiv.style.display = 'block';
+
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                alertDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        // Load queue status
+        async function loadQueueStatus() {
+            try {
+                // This would typically call your backend API
+                // For now, we'll simulate the data
+                const mockData = {
+                    queue: {
+                        queued: 3,
+                        processing: 1,
+                        completed: 12,
+                        failed: 2
+                    },
+                    system: {
+                        totalLessons: 8,
+                        totalVideos: 45,
+                        lastUpdate: new Date().toLocaleTimeString()
+                    },
+                    recentItems: [
+                        {
+                            script_id: 'math_alg_01_short_1',
+                            lesson_title: 'Introduction to Algebra',
+                            script_type: 'short',
+                            target_platform: 'tiktok',
+                            status: 'queued',
+                            created_at: '2025-11-01 10:30:00'
+                        },
+                        {
+                            script_id: 'physics_motion_01_short_1',
+                            lesson_title: 'Basic Physics: Motion',
+                            script_type: 'short',
+                            target_platform: 'youtube_shorts',
+                            status: 'processing',
+                            created_at: '2025-11-01 10:25:00'
+                        }
+                    ]
+                };
+
+                // Update queue stats
+                document.getElementById('queuedCount').textContent = mockData.queue.queued;
+                document.getElementById('processingCount').textContent = mockData.queue.processing;
+                document.getElementById('completedCount').textContent = mockData.queue.completed;
+                document.getElementById('failedCount').textContent = mockData.queue.failed;
+
+                // Update system stats
+                document.getElementById('totalLessons').textContent = mockData.system.totalLessons;
+                document.getElementById('totalVideos').textContent = mockData.system.totalVideos;
+                document.getElementById('lastUpdate').textContent = mockData.system.lastUpdate;
+
+                // Update queue table
+                updateQueueTable(mockData.recentItems);
+
+            } catch (error) {
+                console.error('Error loading queue status:', error);
+            }
+        }
+
+        // Update queue table
+        function updateQueueTable(items) {
+            const tbody = document.getElementById('queueTableBody');
+
+            if (items.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #666;">No items in queue</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = items.map(item => `
+                <tr>
+                    <td>${item.script_id}</td>
+                    <td>${item.lesson_title}</td>
+                    <td>${item.script_type}</td>
+                    <td>${item.target_platform}</td>
+                    <td><span class="status-badge status-${item.status}">${item.status}</span></td>
+                    <td>${new Date(item.created_at).toLocaleString()}</td>
+                    <td>
+                        <button onclick="viewDetails('${item.script_id}')" class="btn" style="padding: 5px 10px; font-size: 12px;">View</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // View details (placeholder function)
+        function viewDetails(scriptId) {
+            alert(`Viewing details for script: ${scriptId}\n\nThis feature will show the script content, video preview, and processing status.`);
+        }
+
+        // Check n8n status
+        async function checkN8nStatus() {
+            try {
+                const response = await fetch(N8N_STATUS_URL);
+                if (response.ok) {
+                    document.getElementById('n8nStatus').innerHTML = '<span style="color: #28a745;">● Online</span>';
+                } else {
+                    document.getElementById('n8nStatus').innerHTML = '<span style="color: #dc3545;">● Offline</span>';
+                }
+            } catch (error) {
+                document.getElementById('n8nStatus').innerHTML = '<span style="color: #dc3545;">● Offline</span>';
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            checkN8nStatus();
+            // Auto-refresh every 30 seconds
+            setInterval(() => {
+                checkN8nStatus();
+                if (document.getElementById('statusSection').style.display !== 'none') {
+                    loadQueueStatus();
+                }
+            }, 30000);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,454 @@
+{
+  "name": "Lesson Plan Processor - Generate Scripts",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "process-lesson",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook - Lesson Upload",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [100, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO lessons (lesson_id, title, subject, grade_level, original_content, content_format, source_type, source_reference) VALUES ('{{ $json.lesson_id }}', '{{ $json.title }}', '{{ $json.subject }}', '{{ $json.grade_level }}', '{{ $json.content }}', '{{ $json.format || 'text' }}', '{{ $json.source_type || 'manual' }}', '{{ $json.source_reference }}') RETURNING *;"
+      },
+      "id": "postgres-save-lesson",
+      "name": "PostgreSQL - Save Lesson",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.2,
+      "position": [300, 200],
+      "credentials": {
+        "postgres": {
+          "id": "profbrainrot-postgres",
+          "name": "ProfBrainRot Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "gpt-4",
+        "messages": {
+          "message": [
+            {
+              "role": "system",
+              "content": "You are an expert educational content creator specializing in ADHD-friendly short-form videos. Convert lesson plans into engaging scripts following the 30/60/10 rule: 30% hook, 60% educational content, 10% call-to-action. Each script should be 30-60 seconds when spoken."
+            },
+            {
+              "role": "user",
+              "content": "Convert this lesson into 3 short-form video scripts (30-60 seconds each) for different platforms (TikTok, YouTube Shorts, Instagram Reels). Also create 1 longer script (8-10 minutes) for YouTube.\n\nLesson Title: {{ $json.title }}\nSubject: {{ $json.subject }}\nGrade Level: {{ $json.grade_level }}\nContent: {{ $json.content }}\n\nRequirements:\n- ADHD-optimized with natural pause points\n- Platform-specific hooks\n- Clear learning objectives\n- Engaging but educational tone\n- Include estimated attention span (seconds)\n\nReturn JSON format:\n{\n  \"shorts\": [\n    {\n      \"platform\": \"tiktok\",\n      \"hook\": \"hook text\",\n      \"content\": \"full script\",\n      \"duration\": 30,\n      \"pause_points\": [10, 20]\n    }\n  ],\n  \"long_form\": {\n    \"content\": \"full script\",\n    \"duration\": 540,\n    \"chapter_markers\": [60, 180, 300, 420]\n  }\n}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.7
+        }
+      },
+      "id": "openai-generate-scripts",
+      "name": "OpenAI - Generate Scripts",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1.1,
+      "position": [500, 200],
+      "credentials": {
+        "openAiApi": {
+          "id": "profbrainrot-openai",
+          "name": "ProfBrainRot OpenAI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "split-scripts",
+      "name": "Split Out Scripts",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [700, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO video_queue (lesson_id, lesson_title, script_id, script_type, content, hook_text, target_platform, priority, adhd_optimized, estimated_attention_span, natural_pause_points, metadata) VALUES ('{{ $json.lesson_id }}', '{{ $json.lesson_title }}', '{{ $json.lesson_id }}_{{ $json.platform }}_{{ $node['split-scripts'].runIndex }}', 'short', '{{ $json.content }}', '{{ $json.hook }}', '{{ $json.platform }}', 1, true, {{ $json.duration }}, ARRAY{{ $json.pause_points }}, '{{ $json }}') RETURNING *;"
+      },
+      "id": "postgres-queue-scripts",
+      "name": "PostgreSQL - Queue Scripts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.2,
+      "position": [900, 200],
+      "credentials": {
+        "postgres": {
+          "id": "profbrainrot-postgres",
+          "name": "ProfBrainRot Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE lessons SET processing_status = 'processing', total_scripts_generated = {{ $json.length }} WHERE lesson_id = '{{ $json.lesson_id }}';"
+      },
+      "id": "postgres-update-lesson",
+      "name": "PostgreSQL - Update Lesson Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.2,
+      "position": [1100, 200],
+      "credentials": {
+        "postgres": {
+          "id": "profbrainrot-postgres",
+          "name": "ProfBrainRot Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "options": {
+          "responseData": "{{ $json }}"
+        }
+      },
+      "id": "webhook-response",
+      "name": "Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1300, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.source_type }}",
+              "operation": "equals",
+              "value2": "kreta"
+            }
+          ]
+        }
+      },
+      "id": "if-kreta-source",
+      "name": "IF - Kréta Source?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [300, 350]
+    },
+    {
+      "parameters": {
+        "url": "https://api.e-kreta.hu/api/v1/Lesson",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $json.kreta_token }}"
+            }
+          ]
+        },
+        "options": {},
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "lessonId",
+              "value": "={{ $json.kreta_lesson_id }}"
+            }
+          ]
+        }
+      },
+      "id": "httpRequest-kreta",
+      "name": "HTTP Request - Fetch Kréta Lesson",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [500, 350],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "kreta-api-token",
+          "name": "Kréta API Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.statusCode }}",
+              "operation": "equal",
+              "value2": 200
+            }
+          ]
+        }
+      },
+      "id": "if-kreta-success",
+      "name": "IF - Kréta Success?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [700, 350]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO error_log (script_id, error_type, error_message, error_context) VALUES ('kreta_{{ $json.kreta_lesson_id }}', 'kreta_api_error', '{{ $json.error }}', '{{ $json }}');"
+      },
+      "id": "postgres-log-kreta-error",
+      "name": "PostgreSQL - Log Kréta Error",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.2,
+      "position": [900, 450],
+      "credentials": {
+        "postgres": {
+          "id": "profbrainrot-postgres",
+          "name": "ProfBrainRot Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.format }}",
+              "operation": "equals",
+              "value2": "pdf"
+            }
+          ]
+        }
+      },
+      "id": "if-pdf-format",
+      "name": "IF - PDF Format?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [300, 100]
+    },
+    {
+      "parameters": {
+        "operation": "extractContent",
+        "options": {
+          "splitByPages": false
+        }
+      },
+      "id": "readPDF",
+      "name": "Read PDF",
+      "type": "n8n-nodes-base.readPDF",
+      "typeVersion": 1,
+      "position": [500, 100]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.format }}",
+              "operation": "equals",
+              "value2": "docx"
+            }
+          ]
+        }
+      },
+      "id": "if-docx-format",
+      "name": "IF - DOCX Format?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [300, 50]
+    },
+    {
+      "parameters": {
+        "operation": "text",
+        "options": {
+          "splitByPages": false
+        }
+      },
+      "id": "readWord",
+      "name": "Read Word Document",
+      "type": "n8n-nodes-base.readWordDocument",
+      "typeVersion": 1,
+      "position": [500, 50]
+    }
+  ],
+  "connections": {
+    "webhook-trigger": {
+      "main": [
+        [
+          {
+            "node": "if-pdf-format",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "if-pdf-format": {
+      "main": [
+        [
+          {
+            "node": "readPDF",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "if-docx-format",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "if-docx-format": {
+      "main": [
+        [
+          {
+            "node": "readWord",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "postgres-save-lesson",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "readPDF": {
+      "main": [
+        [
+          {
+            "node": "postgres-save-lesson",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "readWord": {
+      "main": [
+        [
+          {
+            "node": "postgres-save-lesson",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "postgres-save-lesson": {
+      "main": [
+        [
+          {
+            "node": "if-kreta-source",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "if-kreta-source": {
+      "main": [
+        [
+          {
+            "node": "httpRequest-kreta",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "openai-generate-scripts",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "httpRequest-kreta": {
+      "main": [
+        [
+          {
+            "node": "if-kreta-success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "if-kreta-success": {
+      "main": [
+        [
+          {
+            "node": "openai-generate-scripts",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "postgres-log-kreta-error",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "openai-generate-scripts": {
+      "main": [
+        [
+          {
+            "node": "split-scripts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "split-scripts": {
+      "main": [
+        [
+          {
+            "node": "postgres-queue-scripts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "postgres-queue-scripts": {
+      "main": [
+        [
+          {
+            "node": "postgres-update-lesson",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "postgres-update-lesson": {
+      "main": [
+        [
+          {
+            "node": "webhook-response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  ],
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

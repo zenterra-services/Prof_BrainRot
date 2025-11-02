@@ -1,0 +1,804 @@
+{
+  "name": "Video Queue Processor - Wan 2.5 (Updated)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 10
+            }
+          ]
+        }
+      },
+      "id": "trigger-cron",
+      "name": "Cron - Check Queue Every 10min",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1.1,
+      "position": [100, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM get_next_batch(3);"
+      },
+      "id": "postgres-get-batch",
+      "name": "PostgreSQL - Get Next Batch",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.2,
+      "position": [300, 200],
+      "credentials": {
+        "postgres": {
+          "id": "profbrainrot-postgres",
+          "name": "ProfBrainRot Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.length }}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "id": "if-has-items",
+      "name": "IF - Has Items to Process?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [500, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT mark_batch_processing(ARRAY[{{ $json[\"script_id\"] }}]);"
+      },
+      "id": "postgres-mark-processing",
+      "name": "PostgreSQL - Mark as Processing",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.2,
+      "position": [700, 150],
+      "credentials": {
+        "postgres": {
+          "id": "profbrainrot-postgres",
+          "name": "ProfBrainRot Postgres"
+        }
+      },
+      "notesInFlow": true,
+      "notes": "Mark items as processing to prevent duplicate processing"
+    },
+    {
+      "parameters": {
+        "batch": {
+          "batch": {
+            "waitBetweenBatches": 5
+          }
+        },
+        "options": {}
+      },
+      "id": "splitInBatches",
+      "name": "SplitInBatches - Process 1 by 1",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 2,
+      "position": [900, 150]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO api_usage_log (script_id, api_provider, api_endpoint, request_type) VALUES ('{{ $json[\"script_id\"] }}', 'wan2.5', 'https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/video-generation/video-synthesis', 'create') RETURNING id;"
+      },
+      "id": "postgres-log-api-start",
+      "name": "PostgreSQL - Log API Start",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.2,
+      "position": [1100, 100],
+      "credentials": {
+        "postgres": {
+          "id": "profbrainrot-postgres",
+          "name": "ProfBrainRot Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/video-generation/video-synthesis",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-DashScope-Async",
+              "value": "enable"
+            }
+          ]
+        },
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "wan2.5-t2v-preview"
+            },
+            {
+              "name": "input",
+              "value": "={{ JSON.stringify({ prompt: $json['content'], negative_prompt: 'blurry, low quality, distracting elements, watermark, logo, text overlay, shaky camera, poor lighting' }) }}"
+            },
+            {
+              "name": "parameters",
+              "value": "={{ JSON.stringify({
+                size: '1280*720',
+                duration: 10,
+                audio: true,
+                prompt_extend: true,
+                watermark: false,
+                seed: Math.floor(Math.random() * 2147483647)
+              }) }}"
+            }
+          ]
+        },
+        "method": "POST"
+      },
+      "id": "httpRequest-wan25",
+      "name": "HTTP Request - Wan 2.5 API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1300, 100],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "wan25-api-key",
+          "name": "Wan 2.5 API Key"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.statusCode }}",
+              "operation": "equal",
+              "value2": 201
+            }
+          ]
+        }
+      },
+      "id": "if-api-success",
+      "name": "IF - API Success?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1500, 100]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.output.task_status }}",
+              "operation": "equals",
+              "value2": "PENDING"
+            }
+          ]
+        }
+      },
+      "id": "if-task-pending",
+      "name": "IF - Task Pending?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1700, 50]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE video_queue SET status = 'processing', metadata = jsonb_set(COALESCE(metadata, '{}'), '{task_id}', '"{{ $json.output.task_id }}"'::jsonb) WHERE script_id = '{{ $json.script_id }}';"
+      },
+      "id": "postgres-save-task-id",
+      "name": "PostgreSQL - Save Task ID",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.2,
+      "position": [1900, 50],
+      "credentials": {
+        "postgres": {
+          "id": "profbrainrot-postgres",
+          "name": "ProfBrainRot Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE video_queue SET status = 'failed', error_count = error_count + 1, error_message = 'API request failed: {{ $json.error }}' WHERE script_id = '{{ $json.script_id }}';"
+      },
+      "id": "postgres-mark-failed",
+      "name": "PostgreSQL - Mark Failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.2,
+      "position": [1700, 250],
+      "credentials": {
+        "postgres": {
+          "id": "profbrainrot-postgres",
+          "name": "ProfBrainRot Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO error_log (script_id, error_type, error_message, error_context) VALUES ('{{ $json.script_id }}', 'api_error', '{{ $json.error }}', '{{ $json }}');"
+      },
+      "id": "postgres-log-error",
+      "name": "PostgreSQL - Log Error",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.2,
+      "position": [1900, 250],
+      "credentials": {
+        "postgres": {
+          "id": "profbrainrot-postgres",
+          "name": "ProfBrainRot Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 30,
+        "unit": "seconds"
+      },
+      "id": "wait-30s",
+      "name": "Wait - 30 seconds",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [2100, 50]
+    },
+    {
+      "parameters": {
+        "url": "={{ 'https://dashscope-intl.aliyuncs.com/api/v1/tasks/' + $json.output.task_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {},
+        "method": "GET"
+      },
+      "id": "httpRequest-check-status",
+      "name": "HTTP Request - Check Task Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2300, 50],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "wan25-api-key",
+          "name": "Wan 2.5 API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.output.task_status }}",
+              "operation": "equals",
+              "value2": "SUCCEEDED"
+            }
+          ]
+        }
+      },
+      "id": "if-task-completed",
+      "name": "IF - Task Completed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [2500, 50]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE video_queue SET status = 'completed', completed_at = CURRENT_TIMESTAMP, video_url = '{{ $json.output.video_url }}', video_duration = 10 WHERE script_id = '{{ $json.script_id }}';"
+      },
+      "id": "postgres-mark-completed",
+      "name": "PostgreSQL - Mark Completed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.2,
+      "position": [2700, 0],
+      "credentials": {
+        "postgres": {
+          "id": "profbrainrot-postgres",
+          "name": "ProfBrainRot Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.output.task_status }}",
+              "operation": "equals",
+              "value2": "FAILED"
+            }
+          ]
+        }
+      },
+      "id": "if-task-failed",
+      "name": "IF - Task Failed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [2700, 100]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.output.task_status }}",
+              "operation": "equals",
+              "value2": "RUNNING"
+            }
+          ]
+        }
+      },
+      "id": "if-task-running",
+      "name": "IF - Task Still Running?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [2700, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE video_queue SET status = 'failed', error_count = error_count + 1, error_message = 'Task failed: {{ $json.output.code }} - {{ $json.output.message }}' WHERE script_id = '{{ $json.script_id }}';"
+      },
+      "id": "postgres-mark-task-failed",
+      "name": "PostgreSQL - Mark Task Failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.2,
+      "position": [2900, 100],
+      "credentials": {
+        "postgres": {
+          "id": "profbrainrot-postgres",
+          "name": "ProfBrainRot Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 60,
+        "unit": "seconds"
+      },
+      "id": "wait-60s",
+      "name": "Wait - 60 seconds",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [2900, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE api_usage_log SET status_code = {{ $json.statusCode }}, response_time = {{ $json.responseTime }}, completed_at = CURRENT_TIMESTAMP WHERE script_id = '{{ $json.script_id }}' ORDER BY id DESC LIMIT 1;"
+      },
+      "id": "postgres-update-api-log",
+      "name": "PostgreSQL - Update API Log",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.2,
+      "position": [2900, 0],
+      "credentials": {
+        "postgres": {
+          "id": "profbrainrot-postgres",
+          "name": "ProfBrainRot Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.error_count }}",
+              "operation": "larger",
+              "value2": 2
+            }
+          ]
+        }
+      },
+      "id": "if-max-retries",
+      "name": "IF - Max Retries Reached?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [3100, 150]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE video_queue SET status = 'cancelled' WHERE script_id = '{{ $json.script_id }}';"
+      },
+      "id": "postgres-mark-cancelled",
+      "name": "PostgreSQL - Mark Cancelled",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.2,
+      "position": [3300, 200],
+      "credentials": {
+        "postgres": {
+          "id": "profbrainrot-postgres",
+          "name": "ProfBrainRot Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "channel": "email",
+        "subject": "ProfBrainRot: Video Generation Failed",
+        "text": "Script ID: {{ $json.script_id }}\nError: {{ $json.error_message }}\nPlease check the error log for details.\n\nLesson: {{ $json.lesson_title }}\nPlatform: {{ $json.target_platform }}\nType: {{ $json.script_type }}",
+        "toEmail": "{{ $env.PROCESSING_NOTIFICATION_EMAIL }}"
+      },
+      "id": "email-error-notification",
+      "name": "Email - Error Notification",
+      "type": "n8n-nodes-base.email",
+      "typeVersion": 2.1,
+      "position": [3300, 300],
+      "credentials": {
+        "smtp": {
+          "id": "profbrainrot-smtp",
+          "name": "ProfBrainRot SMTP"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE api_usage_log SET status_code = {{ $json.statusCode }}, error_message = '{{ $json.error_message }}', completed_at = CURRENT_TIMESTAMP WHERE script_id = '{{ $json.script_id }}' ORDER BY id DESC LIMIT 1;"
+      },
+      "id": "postgres-update-api-log-fail",
+      "name": "PostgreSQL - Update API Log (Fail)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.2,
+      "position": [1500, 350],
+      "credentials": {
+        "postgres": {
+          "id": "profbrainrot-postgres",
+          "name": "ProfBrainRot Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM queue_status_summary;"
+      },
+      "id": "postgres-get-stats",
+      "name": "PostgreSQL - Get Queue Stats",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.2,
+      "position": [3500, 50],
+      "credentials": {
+        "postgres": {
+          "id": "profbrainrot-postgres",
+          "name": "ProfBrainRot Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "channel": "email",
+        "subject": "ProfBrainRot: Daily Queue Summary",
+        "text": "Daily Queue Summary:\n{{ $json }}\n\nQueue Status:\n{{ $node['postgres-get-stats'].json }}",
+        "toEmail": "{{ $env.PROCESSING_NOTIFICATION_EMAIL }}"
+      },
+      "id": "email-daily-summary",
+      "name": "Email - Daily Queue Summary",
+      "type": "n8n-nodes-base.email",
+      "typeVersion": 2.1,
+      "position": [3700, 50],
+      "credentials": {
+        "smtp": {
+          "id": "profbrainrot-smtp",
+          "name": "ProfBrainRot SMTP"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "trigger-cron": {
+      "main": [
+        [
+          {
+            "node": "postgres-get-batch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "postgres-get-batch": {
+      "main": [
+        [
+          {
+            "node": "if-has-items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "if-has-items": {
+      "main": [
+        [
+          {
+            "node": "postgres-mark-processing",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "postgres-get-stats",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "postgres-mark-processing": {
+      "main": [
+        [
+          {
+            "node": "splitInBatches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "splitInBatches": {
+      "main": [
+        [
+          {
+            "node": "postgres-log-api-start",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "postgres-log-api-start": {
+      "main": [
+        [
+          {
+            "node": "httpRequest-wan25",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "httpRequest-wan25": {
+      "main": [
+        [
+          {
+            "node": "if-api-success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "if-api-success": {
+      "main": [
+        [
+          {
+            "node": "if-task-pending",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "postgres-mark-failed",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "if-task-pending": {
+      "main": [
+        [
+          {
+            "node": "postgres-save-task-id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "postgres-save-task-id": {
+      "main": [
+        [
+          {
+            "node": "wait-30s",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "wait-30s": {
+      "main": [
+        [
+          {
+            "node": "httpRequest-check-status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "httpRequest-check-status": {
+      "main": [
+        [
+          {
+            "node": "if-task-completed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "if-task-completed": {
+      "main": [
+        [
+          {
+            "node": "postgres-mark-completed",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "if-task-failed",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "if-task-failed": {
+      "main": [
+        [
+          {
+            "node": "postgres-mark-task-failed",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "if-task-running",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "if-task-running": {
+      "main": [
+        [
+          {
+            "node": "wait-60s",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "wait-60s": {
+      "main": [
+        [
+          {
+            "node": "httpRequest-check-status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "postgres-mark-completed": {
+      "main": [
+        [
+          {
+            "node": "postgres-update-api-log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "postgres-mark-task-failed": {
+      "main": [
+        [
+          {
+            "node": "if-max-retries",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "postgres-mark-failed": {
+      "main": [
+        [
+          {
+            "node": "postgres-log-error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "postgres-log-error": {
+      "main": [
+        [
+          {
+            "node": "if-max-retries",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "if-max-retries": {
+      "main": [
+        [
+          {
+            "node": "postgres-mark-cancelled",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "email-error-notification",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "postgres-get-stats": {
+      "main": [
+        [
+          {
+            "node": "email-daily-summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  ],
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "2.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

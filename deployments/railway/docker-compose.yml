@@ -1,0 +1,40 @@
+# Railway-compatible Docker Compose for ProfBrainRot
+version: '3.8'
+
+services:
+  n8n:
+    build:
+      context: ../..
+      dockerfile: deployments/railway/railway.Dockerfile
+    ports:
+      - "5678:5678"
+    environment:
+      # Railway will inject these via environment variables
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD}
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
+      - N8N_HOST=0.0.0.0
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=${DB_POSTGRESDB_HOST}
+      - DB_POSTGRESDB_PORT=${DB_POSTGRESDB_PORT}
+      - DB_POSTGRESDB_DATABASE=${DB_POSTGRESDB_DATABASE}
+      - DB_POSTGRESDB_USER=${DB_POSTGRESDB_USER}
+      - DB_POSTGRESDB_PASSWORD=${DB_POSTGRESDB_PASSWORD}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - WAN25_API_KEY=${WAN25_API_KEY}
+      - PROCESSING_NOTIFICATION_EMAIL=${PROCESSING_NOTIFICATION_EMAIL}
+    volumes:
+      - n8n_data:/home/node/.n8n
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5678/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  n8n_data:
