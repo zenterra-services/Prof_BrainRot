@@ -2,7 +2,7 @@
 FROM n8nio/n8n:latest
 
 # Install PostgreSQL client for database operations
-RUN apt-get update && apt-get install -y postgresql-client && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y postgresql-client curl && rm -rf /var/lib/apt/lists/*
 
 # Create directory for workflows
 RUN mkdir -p /workflows
@@ -13,6 +13,9 @@ COPY n8n/workflows/ /workflows/
 # Copy start script
 COPY start.sh /start.sh
 RUN chmod +x /start.sh
+
+# Ensure n8n is properly linked
+RUN ln -sf $(which n8n) /usr/local/bin/n8n || true
 
 # Set Railway-specific environment variables
 ENV N8N_BASIC_AUTH_ACTIVE=true
