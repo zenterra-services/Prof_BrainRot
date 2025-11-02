@@ -7,9 +7,9 @@ RUN apk add --no-cache postgresql-client curl bash
 # Create app directory
 WORKDIR /app
 
-# Create n8n user and group
-RUN addgroup -g 1000 -S n8n && \
-    adduser -u 1000 -S n8n -G n8n
+# Create n8n user and group with different IDs
+RUN addgroup -g 1001 -S n8n && \
+    adduser -u 1001 -S n8n -G n8n
 
 # Install n8n globally
 RUN npm install -g n8n
