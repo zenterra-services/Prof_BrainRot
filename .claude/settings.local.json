@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(basename:*)",
+      "Bash(git init:*)",
+      "Bash(gh repo create:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git remote add:*)",
+      "Bash(git push:*)",
+      "Bash(git credential-manager:*)",
+      "Bash(printf:*)",
+      "Bash(curl:*)",
+      "Bash(git remote set-url:*)",
+      "WebSearch",
+      "WebFetch(domain:modelstudio.console.alibabacloud.com)",
+      "Bash(python:*)",
+      "Bash(docker-compose ps:*)",
+      "Bash(docker compose:*)",
+      "Bash(shellcheck:*)",
+      "Bash(pip install:*)",
+      "Bash(railway:*)",
+      "Bash(sh:*)",
+      "Bash(npm install:*)",
+      "Bash(chmod:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
