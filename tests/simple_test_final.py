@@ -10,7 +10,7 @@ def test_wan25_correct():
     """Correct test that recognizes success"""
     print("Testing Wan 2.5 API with educational content...")
 
-    API_KEY = "${WAN25_API_KEY_REDACTED}"
+    API_KEY = "${WAN25_API_KEY}"
 
     # Educational prompt
     prompt = "A teacher explaining fractions with visual examples and clear animations"

@@ -85,7 +85,7 @@ node start.js
    set DB_POSTGRESDB_USER=postgres
    set DB_POSTGRESDB_PASSWORD=profbrainrot123
    set OPENAI_API_KEY=your-openai-api-key
-   set WAN25_API_KEY=${WAN25_API_KEY_REDACTED}
+   set WAN25_API_KEY=${WAN25_API_KEY}
    set PROCESSING_NOTIFICATION_EMAIL=your-email@example.com
    ```
 
@@ -173,7 +173,7 @@ def process_queue():
 
 def generate_wan25_video(script_id, content, platform):
     """Generate video using Wan 2.5 API"""
-    api_key = "${WAN25_API_KEY_REDACTED}"
+    api_key = "${WAN25_API_KEY}"
 
     request_data = {
         "model": "wan2.5-t2v-preview",

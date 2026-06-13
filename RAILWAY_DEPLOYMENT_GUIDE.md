@@ -75,7 +75,7 @@ N8N_ENCRYPTION_KEY=your-32-character-encryption-key
 
 # API Keys
 OPENAI_API_KEY=your-openai-api-key
-WAN25_API_KEY=${WAN25_API_KEY_REDACTED}
+WAN25_API_KEY=${WAN25_API_KEY}
 
 # Notifications
 PROCESSING_NOTIFICATION_EMAIL=your-email@example.com
@@ -151,7 +151,7 @@ N8N_ENCRYPTION_KEY=your-32-character-encryption-key
 
 # Required - API Keys
 OPENAI_API_KEY=sk-your-openai-key
-WAN25_API_KEY=${WAN25_API_KEY_REDACTED}
+WAN25_API_KEY=${WAN25_API_KEY}
 
 # Optional - Notifications
 PROCESSING_NOTIFICATION_EMAIL=your-email@example.com

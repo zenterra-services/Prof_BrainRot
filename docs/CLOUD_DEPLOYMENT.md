@@ -144,7 +144,7 @@ N8N_ENCRYPTION_KEY=your-32-character-encryption-key
 
 # API Keys
 OPENAI_API_KEY=your-openai-api-key
-WAN25_API_KEY=${WAN25_API_KEY_REDACTED}
+WAN25_API_KEY=${WAN25_API_KEY}
 PROCESSING_NOTIFICATION_EMAIL=your-email@example.com
 
 # Oracle Cloud specific
@@ -177,7 +177,7 @@ services:
       - DB_POSTGRESDB_USER=ADMIN
       - DB_POSTGRESDB_PASSWORD=ProfBrainRot2025!
       - OPENAI_API_KEY=your-openai-api-key
-      - WAN25_API_KEY=${WAN25_API_KEY_REDACTED}
+      - WAN25_API_KEY=${WAN25_API_KEY}
       - PROCESSING_NOTIFICATION_EMAIL=your-email@example.com
     volumes:
       - n8n_data:/home/node/.n8n
@@ -287,7 +287,7 @@ In Railway dashboard:
    DB_POSTGRESDB_USER=postgres
    DB_POSTGRESDB_PASSWORD=${{DATABASE_URL}}
    OPENAI_API_KEY=your-openai-api-key
-   WAN25_API_KEY=${WAN25_API_KEY_REDACTED}
+   WAN25_API_KEY=${WAN25_API_KEY}
    PROCESSING_NOTIFICATION_EMAIL=your-email@example.com
    ```
 

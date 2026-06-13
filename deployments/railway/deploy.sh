@@ -24,7 +24,7 @@ railway variables set \
     N8N_BASIC_AUTH_PASSWORD=your-secure-password \
     N8N_ENCRYPTION_KEY=your-32-character-encryption-key \
     OPENAI_API_KEY=your-openai-api-key \
-    WAN25_API_KEY=${WAN25_API_KEY_REDACTED} \
+    WAN25_API_KEY=${WAN25_API_KEY} \
     PROCESSING_NOTIFICATION_EMAIL=your-email@example.com
 
 # Deploy the application

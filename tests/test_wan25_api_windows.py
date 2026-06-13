@@ -13,7 +13,7 @@ import sys
 sys.stdout.reconfigure(encoding='utf-8')
 
 # Wan 2.5 API Configuration
-API_KEY = "${WAN25_API_KEY_REDACTED}"
+API_KEY = "${WAN25_API_KEY}"
 BASE_URL = "https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/video-generation"
 HEADERS = {
     "Authorization": f"Bearer {API_KEY}",

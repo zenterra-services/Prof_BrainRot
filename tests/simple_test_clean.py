@@ -10,7 +10,7 @@ def test_wan25_simple():
     """Simple test with minimal setup"""
     print("Testing Wan 2.5 API with simple educational content...")
 
-    API_KEY = "${WAN25_API_KEY_REDACTED}"
+    API_KEY = "${WAN25_API_KEY}"
 
     # Simple educational prompt
     prompt = "A teacher explaining fractions with visual examples and clear animations"

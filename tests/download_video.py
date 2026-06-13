@@ -60,7 +60,7 @@ def test_direct_download():
     # Your video URL from the test
     video_url = "https://dashscope-result-sh.oss-accelerate.aliyuncs.com/1d/20/20251102/1d205e84/d5e66832-eade-4488-a5e6-f5cb81d457e4.mp4
         ?Expires=1762105048&OSSAccessKeyId=LTAI5tKPD3TMqf2Lna1fASuh&Signature=oA0%2BNxGB7sro3VtnnTlrkcFwCYw%3D"
-    api_key = "${WAN25_API_KEY_REDACTED}"
+    api_key = "${WAN25_API_KEY}"
 
     print("=" * 60)
     print("WAN 2.5 VIDEO DOWNLOAD TEST")

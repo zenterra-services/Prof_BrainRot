@@ -11,7 +11,7 @@ def main():
     print("WAN 2.5 API INTEGRATION - FINAL TEST RESULTS")
     print("=" * 60)
 
-    API_KEY = "${WAN25_API_KEY_REDACTED}"
+    API_KEY = "${WAN25_API_KEY}"
     TASK_ID = "d5e66832-eade-4488-a5e6-f5cb81d457e4"
 
     print(f"API Key: {API_KEY[:10]}...")

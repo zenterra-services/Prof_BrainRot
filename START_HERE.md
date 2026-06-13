@@ -6,7 +6,7 @@ Your system is now configured with **Wan 2.5 API** for massive cost savings (85%
 
 - ✅ PostgreSQL database configured
 - ✅ n8n workflows updated for Wan 2.5
-- ✅ Wan 2.5 API key integrated (`${WAN25_API_KEY_REDACTED}`)
+- ✅ Wan 2.5 API key integrated (`${WAN25_API_KEY}`)
 - ✅ Docker environment configured
 - ✅ Web interface ready
 

@@ -14,7 +14,7 @@ Deploy your ProfBrainRot system to Railway in under 10 minutes! Railway offers t
 - Railway account (free)
 - Your API keys:
   - OpenAI API key
-  - Wan 2.5 API key: `${WAN25_API_KEY_REDACTED}`
+  - Wan 2.5 API key: `${WAN25_API_KEY}`
 
 ## 🚂 **Step-by-Step Railway Deployment**
 
@@ -80,7 +80,7 @@ railway variables set \
     N8N_BASIC_AUTH_PASSWORD=your-secure-password \
     N8N_ENCRYPTION_KEY=your-32-character-encryption-key \
     OPENAI_API_KEY=your-openai-api-key \
-    WAN25_API_KEY=${WAN25_API_KEY_REDACTED} \
+    WAN25_API_KEY=${WAN25_API_KEY} \
     PROCESSING_NOTIFICATION_EMAIL=your-email@example.com
 ```
 
@@ -98,7 +98,7 @@ N8N_ENCRYPTION_KEY=your-32-character-encryption-key
 
 # API Keys
 OPENAI_API_KEY=your-openai-api-key
-WAN25_API_KEY=${WAN25_API_KEY_REDACTED}
+WAN25_API_KEY=${WAN25_API_KEY}
 
 # Notifications
 PROCESSING_NOTIFICATION_EMAIL=your-email@example.com
@@ -158,7 +158,7 @@ N8N_BASIC_AUTH_USER=admin
 N8N_BASIC_AUTH_PASSWORD=your-secure-password
 N8N_ENCRYPTION_KEY=your-32-character-encryption-key
 OPENAI_API_KEY=your-openai-api-key
-WAN25_API_KEY=${WAN25_API_KEY_REDACTED}
+WAN25_API_KEY=${WAN25_API_KEY}
 PROCESSING_NOTIFICATION_EMAIL=your-email@example.com
 ```
 
